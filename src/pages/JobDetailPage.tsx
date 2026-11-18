@@ -4,6 +4,7 @@ import { jobsApi } from "../api/jobs";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { DeleteJobDialog } from "../components/DeleteJobDialog";
+import { JobCandidates } from "../components/JobCandidates";
 import { SkillList } from "../components/SkillList";
 import type { Job } from "../types";
 
@@ -70,6 +71,8 @@ export function JobDetailPage() {
           <p>{job.minimum_experience != null ? `${job.minimum_experience}+ years` : "Not specified"}</p>
         </section>
       </div>
+
+      <JobCandidates job={job} />
 
       <DeleteJobDialog
         job={confirmDelete ? job : null}

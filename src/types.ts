@@ -64,3 +64,44 @@ export interface ResumeDetail extends Resume {
   extraction_error: string | null;
   extracted_at: string | null;
 }
+
+// --- Resume scores: mirrors ResumeScoreRead in backend/app/schemas.py ---
+
+export type ScoreStatus = "scoring" | "scored" | "failed";
+export type Recommendation = "strong_fit" | "good_fit" | "partial_fit" | "not_a_fit";
+export type CriterionName =
+  | "required_skills"
+  | "preferred_skills"
+  | "experience"
+  | "role_relevance"
+  | "achievements"
+  | "education_certifications";
+
+export interface CriterionScore {
+  score: number;
+  rationale: string;
+  evidence: string[];
+  // Only on the skill criteria (required_skills, preferred_skills).
+  matched?: string[] | null;
+  missing?: string[] | null;
+}
+
+export interface ResumeScore {
+  score_id: string;
+  job_id: string;
+  resume: { resume_id: string; original_filename: string; candidate_name: string | null };
+  status: ScoreStatus;
+  overall_score: number | null;
+  recommendation: Recommendation | null;
+  criteria: Partial<Record<CriterionName, CriterionScore>> | null;
+  relevant_experience_years: number | null;
+  summary: string | null;
+  strengths: string[] | null;
+  gaps: string[] | null;
+  weights: Partial<Record<CriterionName, number>> | null;
+  agent_name: string | null;
+  agent_version: string | null;
+  model: string | null;
+  error: string | null;
+  scored_at: string | null;
+}

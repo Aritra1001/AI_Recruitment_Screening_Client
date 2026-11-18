@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { ResumeDetailPage } from "./pages/ResumeDetailPage";
 import { ResumesPage } from "./pages/ResumesPage";
 import { ResumeUploadPage } from "./pages/ResumeUploadPage";
+import { ScoreComparisonPage } from "./pages/ScoreComparisonPage";
 import { SignupPage } from "./pages/SignupPage";
 import { ForbiddenPage, NotFoundPage } from "./pages/StatusPages";
 
@@ -44,6 +45,7 @@ export function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/jobs/:jobId/scores/:resumeId" element={<ScoreComparisonPage />} />
         <Route path="/resumes" element={<ResumesPage />} />
         <Route path="/resumes/upload" element={<ResumeUploadPage />} />
         <Route path="/resumes/:resumeId" element={<ResumeDetailPage />} />

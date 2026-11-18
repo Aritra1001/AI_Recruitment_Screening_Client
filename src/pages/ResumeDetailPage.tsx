@@ -1,14 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { jobsApi } from "../api/jobs";
 import { canDeleteResume, formatBytes, resumesApi, saveBlob } from "../api/resumes";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { DeleteResumeDialog } from "../components/DeleteResumeDialog";
+import { PendingNotice } from "../components/PendingNotice";
 import { ResumeStatusBadge } from "../components/ResumeStatusBadge";
 import { ScoreAgainstJob } from "../components/ScoreAgainstJob";
 import { SkillList } from "../components/SkillList";
 import type { ExtractedResume, Job, ResumeDetail } from "../types";
+import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
 // The API's maximum page size; enough for a POC.
 const MAX_JOBS = 200;
@@ -16,7 +18,6 @@ const MAX_JOBS = 200;
 export function ResumeDetailPage() {
   const { resumeId = "" } = useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [resume, setResume] = useState<ResumeDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -28,6 +29,12 @@ export function ResumeDetailPage() {
   useEffect(() => {
     resumesApi.get(resumeId).then(setResume).catch((e: Error) => setError(e.message));
   }, [resumeId]);
+
+  // Pick up an admin's decision on a pending deletion.
+  useAutoRefresh(
+    () => resumesApi.get(resumeId).then(setResume).catch(showIfGone(setError)),
+    !!resume?.pending_deletion,
+  );
 
   // Jobs are only needed for ScoreAgainstJob, so load them the first time the resume is
   // extracted. They're kept here because that card unmounts while re-extracting.
@@ -77,7 +84,7 @@ export function ResumeDetailPage() {
           <button className="btn" onClick={download}>
             Download
           </button>
-          {canDeleteResume(user, resume) && (
+          {canDeleteResume(user, resume) && !resume.pending_deletion && (
             <button className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
               Delete
             </button>
@@ -87,6 +94,7 @@ export function ResumeDetailPage() {
       <Alert kind="error" onClose={() => setDownloadError(null)}>
         {downloadError}
       </Alert>
+      <PendingNotice pending={resume.pending_deletion} />
 
       <div className="resume-layout">
         <section className="card resume-pane">
@@ -111,7 +119,10 @@ export function ResumeDetailPage() {
 
       <DeleteResumeDialog
         resume={confirmDelete ? resume : null}
-        onDeleted={(r) => navigate("/resumes", { state: { flash: `Deleted "${r.original_filename}".` } })}
+        onRequested={() => {
+          setConfirmDelete(false);
+          resumesApi.get(resumeId).then(setResume).catch((e: Error) => setError(e.message));
+        }}
         onCancel={() => setConfirmDelete(false)}
       />
     </>

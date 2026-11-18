@@ -3,9 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { jobsApi } from "../api/jobs";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
+import { JobApprovalBadge } from "../components/ApprovalBadge";
 import { DeleteJobDialog } from "../components/DeleteJobDialog";
 import { SkillList } from "../components/SkillList";
 import type { Job } from "../types";
+import { useAutoRefresh } from "../useAutoRefresh";
 
 const PAGE_SIZE = 20;
 
@@ -37,12 +39,15 @@ export function JobsPage() {
     load();
   }, [load]);
 
-  function handleDeleted(job: Job) {
+  // Quietly pick up jobs another admin approved.
+  useAutoRefresh(() => {
+    jobsApi.list(PAGE_SIZE, page * PAGE_SIZE).then(setJobs).catch(() => {});
+  });
+
+  function handleRequested(job: Job) {
     setToDelete(null);
-    setFlash(`Deleted "${job.title}".`);
-    // Step back a page if we just removed the last job on this one.
-    if (jobs.length === 1 && page > 0) setPage(page - 1);
-    else load();
+    setFlash(`Deleting "${job.title}" was sent to another admin for approval.`);
+    load();
   }
 
   return (
@@ -51,7 +56,9 @@ export function JobsPage() {
         <div>
           <h1>Jobs</h1>
           <p className="muted">
-            {isAdmin ? "Create, edit and remove job openings." : "You have read-only access to job openings."}
+            {isAdmin
+              ? "Create, edit and remove job openings. Each change goes live once another admin approves it."
+              : "You have read-only access to job openings."}
           </p>
         </div>
         {isAdmin && (
@@ -79,6 +86,7 @@ export function JobsPage() {
                 <th>Required skills</th>
                 <th>Min. exp.</th>
                 <th>Created</th>
+                {isAdmin && <th>Status</th>}
                 <th className="actions-col">Actions</th>
               </tr>
             </thead>
@@ -95,11 +103,21 @@ export function JobsPage() {
                   </td>
                   <td>{job.minimum_experience != null ? `${job.minimum_experience}+ yrs` : "—"}</td>
                   <td>{new Date(job.created_at).toLocaleDateString()}</td>
+                  {isAdmin && (
+                    <td>
+                      <JobApprovalBadge approval={job.approval} />
+                    </td>
+                  )}
                   <td className="actions-col">
                     <Link to={`/jobs/${job.job_id}`} className="btn btn-sm">
                       View
                     </Link>
-                    {isAdmin && (
+                    {isAdmin && job.approval?.pending && (
+                      <Link to={`/approvals/${job.approval.pending.request_id}`} className="btn btn-sm">
+                        Request
+                      </Link>
+                    )}
+                    {isAdmin && !job.approval?.pending && (
                       <>
                         <Link to={`/jobs/${job.job_id}/edit`} className="btn btn-sm">
                           Edit
@@ -127,7 +145,7 @@ export function JobsPage() {
         </button>
       </div>
 
-      <DeleteJobDialog job={toDelete} onDeleted={handleDeleted} onCancel={() => setToDelete(null)} />
+      <DeleteJobDialog job={toDelete} onRequested={handleRequested} onCancel={() => setToDelete(null)} />
     </>
   );
 }

@@ -6,11 +6,12 @@ import { ConfirmDialog } from "./ConfirmDialog";
 interface Props {
   /** The resume to delete; the dialog is open while this is non-null. */
   resume: Resume | null;
-  onDeleted: (resume: Resume) => void;
+  onRequested: (resume: Resume) => void;
   onCancel: () => void;
 }
 
-export function DeleteResumeDialog({ resume, onDeleted, onCancel }: Props) {
+/** Asks for the resume's deletion; an admin (other than the caller) has to approve it. */
+export function DeleteResumeDialog({ resume, onRequested, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export function DeleteResumeDialog({ resume, onDeleted, onCancel }: Props) {
     setError(null);
     try {
       await resumesApi.remove(resume.resume_id);
-      onDeleted(resume);
+      onRequested(resume);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -37,7 +38,7 @@ export function DeleteResumeDialog({ resume, onDeleted, onCancel }: Props) {
     <ConfirmDialog
       open={resume !== null}
       title="Delete resume?"
-      confirmLabel="Delete resume"
+      confirmLabel="Request deletion"
       danger
       busy={busy}
       error={error}
@@ -45,8 +46,12 @@ export function DeleteResumeDialog({ resume, onDeleted, onCancel }: Props) {
       onCancel={cancel}
     >
       <p>
-        You are about to permanently delete <strong>{resume?.original_filename}</strong> and anything
-        extracted from it. This cannot be undone.
+        You are asking to permanently delete <strong>{resume?.original_filename}</strong>, anything extracted
+        from it and its scores.
+      </p>
+      <p className="muted">
+        An admin is emailed to approve it. The resume stays, and can still be scored, until they do; once approved,
+        this cannot be undone.
       </p>
     </ConfirmDialog>
   );

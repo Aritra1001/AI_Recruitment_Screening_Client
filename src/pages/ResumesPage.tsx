@@ -3,9 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { canDeleteResume, fileTypeLabel, formatBytes, resumesApi } from "../api/resumes";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
+import { PendingBadge } from "../components/ApprovalBadge";
 import { DeleteResumeDialog } from "../components/DeleteResumeDialog";
 import { ResumeStatusBadge } from "../components/ResumeStatusBadge";
 import type { Resume } from "../types";
+import { useAutoRefresh } from "../useAutoRefresh";
 
 const PAGE_SIZE = 20;
 
@@ -37,11 +39,15 @@ export function ResumesPage() {
     load();
   }, [load]);
 
-  function handleDeleted(resume: Resume) {
+  // Quietly pick up deletions an admin approved.
+  useAutoRefresh(() => {
+    resumesApi.list(PAGE_SIZE, page * PAGE_SIZE).then(setResumes).catch(() => {});
+  });
+
+  function handleRequested(resume: Resume) {
     setToDelete(null);
-    setFlash(`Deleted "${resume.original_filename}".`);
-    if (resumes.length === 1 && page > 0) setPage(page - 1);
-    else load();
+    setFlash(`Deleting "${resume.original_filename}" was sent to an admin for approval.`);
+    load();
   }
 
   return (
@@ -96,7 +102,10 @@ export function ResumesPage() {
                     </Link>
                   </td>
                   <td>
-                    <ResumeStatusBadge status={resume.status} />
+                    <span className="badge-row">
+                      <ResumeStatusBadge status={resume.status} />
+                      {resume.pending_deletion && <PendingBadge pending={resume.pending_deletion} />}
+                    </span>
                   </td>
                   <td>{resume.uploader.full_name}</td>
                   <td>{new Date(resume.uploaded_at).toLocaleDateString()}</td>
@@ -105,7 +114,7 @@ export function ResumesPage() {
                     <Link to={`/resumes/${resume.resume_id}`} className="btn btn-sm">
                       View
                     </Link>
-                    {canDeleteResume(user, resume) && (
+                    {canDeleteResume(user, resume) && !resume.pending_deletion && (
                       <button className="btn btn-sm btn-danger-outline" onClick={() => setToDelete(resume)}>
                         Delete
                       </button>
@@ -128,7 +137,7 @@ export function ResumesPage() {
         </button>
       </div>
 
-      <DeleteResumeDialog resume={toDelete} onDeleted={handleDeleted} onCancel={() => setToDelete(null)} />
+      <DeleteResumeDialog resume={toDelete} onRequested={handleRequested} onCancel={() => setToDelete(null)} />
     </>
   );
 }

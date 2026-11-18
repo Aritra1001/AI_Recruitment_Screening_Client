@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Layout } from "./components/Layout";
+import { ApprovalDetailPage } from "./pages/ApprovalDetailPage";
+import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { JobCreatePage } from "./pages/JobCreatePage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { JobEditPage } from "./pages/JobEditPage";
@@ -49,6 +51,16 @@ export function App() {
         <Route path="/resumes" element={<ResumesPage />} />
         <Route path="/resumes/upload" element={<ResumeUploadPage />} />
         <Route path="/resumes/:resumeId" element={<ResumeDetailPage />} />
+        <Route
+          path="/approvals"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <ApprovalsPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Not admin-only: a recruiter follows (and can withdraw) their own resume deletion here. */}
+        <Route path="/approvals/:requestId" element={<ApprovalDetailPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

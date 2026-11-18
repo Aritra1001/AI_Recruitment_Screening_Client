@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { jobsApi } from "../api/jobs";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
+import { JobApprovalBadge } from "../components/ApprovalBadge";
 import { DeleteJobDialog } from "../components/DeleteJobDialog";
+import { JobCandidates } from "../components/JobCandidates";
+import { PendingNotice } from "../components/PendingNotice";
 import { SkillList } from "../components/SkillList";
 import type { Job } from "../types";
+import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
 export function JobDetailPage() {
   const { jobId = "" } = useParams();
   const { isAdmin } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,8 +26,15 @@ export function JobDetailPage() {
     jobsApi.get(jobId).then(setJob).catch((e: Error) => setError(e.message));
   }, [jobId]);
 
+  // Pick up another admin's decision on a pending request.
+  useAutoRefresh(
+    () => jobsApi.get(jobId).then(setJob).catch(showIfGone(setError)),
+    !!job?.approval?.pending,
+  );
+
   if (error) return <Alert kind="error">{error}</Alert>;
   if (!job) return <div className="page-status">Loading…</div>;
+  const pending = job.approval?.pending ?? null;
 
   return (
     <>
@@ -34,9 +44,11 @@ export function JobDetailPage() {
       <div className="page-header">
         <div>
           <h1>{job.title}</h1>
-          <p className="muted">Created {new Date(job.created_at).toLocaleString()}</p>
+          <p className="muted resume-meta">
+            <JobApprovalBadge approval={job.approval} /> Created {new Date(job.created_at).toLocaleString()}
+          </p>
         </div>
-        {isAdmin && (
+        {isAdmin && !pending && (
           <div className="header-actions">
             <Link to={`/jobs/${job.job_id}/edit`} className="btn">
               Edit
@@ -51,6 +63,7 @@ export function JobDetailPage() {
       <Alert kind="success" onClose={() => setFlash(null)}>
         {flash}
       </Alert>
+      <PendingNotice pending={pending} />
 
       <div className="card detail">
         <section>
@@ -71,9 +84,15 @@ export function JobDetailPage() {
         </section>
       </div>
 
+      <JobCandidates job={job} />
+
       <DeleteJobDialog
         job={confirmDelete ? job : null}
-        onDeleted={(deleted) => navigate("/jobs", { state: { flash: `Deleted "${deleted.title}".` } })}
+        onRequested={() => {
+          setConfirmDelete(false);
+          setFlash("Deletion sent to another admin for approval. The job stays live until they approve it.");
+          jobsApi.get(jobId).then(setJob).catch((e: Error) => setError(e.message));
+        }}
         onCancel={() => setConfirmDelete(false)}
       />
     </>

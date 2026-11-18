@@ -6,11 +6,12 @@ import { ConfirmDialog } from "./ConfirmDialog";
 interface Props {
   /** The job to delete; the dialog is open while this is non-null. */
   job: Job | null;
-  onDeleted: (job: Job) => void;
+  onRequested: (job: Job) => void;
   onCancel: () => void;
 }
 
-export function DeleteJobDialog({ job, onDeleted, onCancel }: Props) {
+/** Asks for the job's deletion; another admin has to approve it. */
+export function DeleteJobDialog({ job, onRequested, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export function DeleteJobDialog({ job, onDeleted, onCancel }: Props) {
     setError(null);
     try {
       await jobsApi.remove(job.job_id);
-      onDeleted(job);
+      onRequested(job);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -37,7 +38,7 @@ export function DeleteJobDialog({ job, onDeleted, onCancel }: Props) {
     <ConfirmDialog
       open={job !== null}
       title="Delete job?"
-      confirmLabel="Delete job"
+      confirmLabel="Request deletion"
       danger
       busy={busy}
       error={error}
@@ -45,7 +46,11 @@ export function DeleteJobDialog({ job, onDeleted, onCancel }: Props) {
       onCancel={cancel}
     >
       <p>
-        You are about to permanently delete <strong>{job?.title}</strong>. This cannot be undone.
+        You are asking to permanently delete <strong>{job?.title}</strong> and every resume score against it.
+      </p>
+      <p className="muted">
+        Another admin is emailed to approve it. The job stays live until they do; once approved, this cannot be
+        undone.
       </p>
     </ConfirmDialog>
   );

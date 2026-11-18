@@ -15,7 +15,9 @@ export function JobCreatePage() {
     setError(null);
     try {
       const job = await jobsApi.create(input);
-      navigate(`/jobs/${job.job_id}`, { state: { flash: "Job created." } });
+      navigate(`/jobs/${job.job_id}`, {
+        state: { flash: "Job sent to another admin for approval. Recruiters will see it once it's approved." },
+      });
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -25,8 +27,9 @@ export function JobCreatePage() {
   return (
     <>
       <h1>New job</h1>
+      <p className="muted">The job goes live once another admin approves it.</p>
       <Alert kind="error">{error}</Alert>
-      <JobForm submitLabel="Create job" busy={busy} onSubmit={handleSubmit} onCancel={() => navigate("/jobs")} />
+      <JobForm submitLabel="Submit for approval" busy={busy} onSubmit={handleSubmit} onCancel={() => navigate("/jobs")} />
     </>
   );
 }

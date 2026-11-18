@@ -4,15 +4,10 @@ import { jobsApi } from "../api/jobs";
 import { Alert } from "../components/Alert";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { JobForm } from "../components/JobForm";
+import { PendingNotice } from "../components/PendingNotice";
+import { FIELD_LABELS, formatValue } from "../jobFields";
 import type { Job, JobInput } from "../types";
-
-const FIELD_LABELS: Record<keyof JobInput, string> = {
-  title: "Title",
-  description: "Description",
-  required_skills: "Required skills",
-  preferred_skills: "Preferred skills",
-  minimum_experience: "Minimum experience",
-};
+import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
 /** Only the fields that differ from the saved job, so the PATCH (and audit log) stays minimal. */
 function diffJob(job: Job, input: JobInput): Partial<JobInput> {
@@ -32,13 +27,6 @@ function diffJob(job: Job, input: JobInput): Partial<JobInput> {
   return changes;
 }
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "(not set)";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "(none)";
-  const text = String(value);
-  return text.length > 140 ? `${text.slice(0, 140)}…` : text;
-}
-
 export function JobEditPage() {
   const { jobId = "" } = useParams();
   const navigate = useNavigate();
@@ -52,6 +40,12 @@ export function JobEditPage() {
   useEffect(() => {
     jobsApi.get(jobId).then(setJob).catch((e: Error) => setLoadError(e.message));
   }, [jobId]);
+
+  // The form opens once another admin decides the pending request.
+  useAutoRefresh(
+    () => jobsApi.get(jobId).then(setJob).catch(showIfGone(setLoadError)),
+    !!job?.approval?.pending,
+  );
 
   if (loadError) return <Alert kind="error">{loadError}</Alert>;
   if (!job) return <div className="page-status">Loading…</div>;
@@ -73,7 +67,9 @@ export function JobEditPage() {
     setSaveError(null);
     try {
       await jobsApi.update(job!.job_id, pending);
-      navigate(`/jobs/${job!.job_id}`, { state: { flash: "Job updated." } });
+      navigate(`/jobs/${job!.job_id}`, {
+        state: { flash: "Changes sent to another admin for approval. They go live once approved." },
+      });
     } catch (e) {
       setSaveError((e as Error).message);
       setBusy(false);
@@ -86,25 +82,31 @@ export function JobEditPage() {
       <Alert kind="info" onClose={() => setNotice(null)}>
         {notice}
       </Alert>
-      <JobForm
-        initial={job}
-        submitLabel="Save changes"
-        busy={busy}
-        onSubmit={handleSubmit}
-        onCancel={() => navigate(`/jobs/${job.job_id}`)}
-      />
+      {job.approval?.pending ? (
+        // Another change can't be submitted until this one is decided (the API refuses it too).
+        <PendingNotice pending={job.approval.pending} />
+      ) : (
+        <JobForm
+          initial={job}
+          submitLabel="Submit for approval"
+          busy={busy}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate(`/jobs/${job.job_id}`)}
+        />
+      )}
 
       <ConfirmDialog
         open={pending !== null}
-        title="Save these changes?"
-        confirmLabel="Yes, update job"
+        title="Submit these changes?"
+        confirmLabel="Submit for approval"
         busy={busy}
         error={saveError}
         onConfirm={confirmUpdate}
         onCancel={() => setPending(null)}
       >
         <p>
-          You are about to update <strong>{job.title}</strong>:
+          You are asking to update <strong>{job.title}</strong>. Another admin is emailed to approve it; until then
+          everyone keeps seeing the current version.
         </p>
         <table className="diff-table">
           <thead>

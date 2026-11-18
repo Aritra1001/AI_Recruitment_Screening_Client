@@ -51,7 +51,8 @@ async function send(path: string, options: RequestInit = {}): Promise<Response> 
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    // no-store: approval state changes underneath us, so never reuse a cached GET.
+    response = await fetch(`${BASE_URL}${path}`, { cache: "no-store", ...options, headers });
   } catch {
     throw new ApiError(0, NETWORK_ERROR);
   }

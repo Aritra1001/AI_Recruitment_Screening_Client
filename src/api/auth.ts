@@ -12,5 +12,11 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ full_name: fullName, email, password }),
     }),
-  me: () => apiRequest<User>("/auth/me"),
+  /** Exchanges the ID token from Google's sign-in button for a portal session. */
+  google: (credential: string) =>
+    apiRequest<LoginResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
+  me: () =>apiRequest<User>("/auth/me"),
 };

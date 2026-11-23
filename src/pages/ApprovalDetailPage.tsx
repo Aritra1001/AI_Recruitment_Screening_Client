@@ -5,8 +5,9 @@ import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { ApprovalStatusBadge } from "../components/ApprovalBadge";
 import { SkillList } from "../components/SkillList";
-import { FIELD_LABELS, formatValue } from "../jobFields";
-import type { ApprovalRequest, FieldChange, JobInput } from "../types";
+import { useDomains } from "../api/domains";
+import { FIELD_LABELS, formatField } from "../jobFields";
+import type { ApprovalRequest, Domain, FieldChange, JobInput } from "../types";
 import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
 const JOB_FIELDS = Object.keys(FIELD_LABELS) as (keyof JobInput)[];
@@ -61,6 +62,7 @@ export function ApprovalDetailPage() {
 
 function ChangeDetails({ request }: { request: ApprovalRequest }) {
   const { action, details } = request;
+  const domains = useDomains();
   if (action === "job_update") {
     const changes = details as Partial<Record<keyof JobInput, FieldChange>>;
     return (
@@ -73,11 +75,11 @@ function ChangeDetails({ request }: { request: ApprovalRequest }) {
               <div className="change-values">
                 <div>
                   <span className="change-label">Current</span>
-                  <p className="diff-old">{formatValue(changes[field]!.old, true)}</p>
+                  <p className="diff-old">{formatField(field, changes[field]!.old, domains, true)}</p>
                 </div>
                 <div>
                   <span className="change-label">Proposed</span>
-                  <p className="diff-new">{formatValue(changes[field]!.new, true)}</p>
+                  <p className="diff-new">{formatField(field, changes[field]!.new, domains, true)}</p>
                 </div>
               </div>
             </div>
@@ -92,6 +94,7 @@ function ChangeDetails({ request }: { request: ApprovalRequest }) {
         <h2 className="pane-title">Resume to delete</h2>
         <dl className="approval-fields">
           <Row label="File">{String(details.original_filename ?? request.target_name)}</Row>
+          <Row label="Job">{(details.job_title as string | null | undefined) ?? <span className="muted">None</span>}</Row>
           <Row label="Candidate">{(details.candidate_name as string | null) ?? <span className="muted">Not extracted</span>}</Row>
           <Row label="Uploaded by">{String(details.uploaded_by ?? "")}</Row>
         </dl>
@@ -105,22 +108,22 @@ function ChangeDetails({ request }: { request: ApprovalRequest }) {
       <dl className="approval-fields">
         {JOB_FIELDS.map((field) => (
           <Row key={field} label={FIELD_LABELS[field]}>
-            <JobFieldValue field={field} value={details[field]} />
+            <JobFieldValue field={field} value={details[field]} domains={domains} />
           </Row>
         ))}
       </dl>
       {action === "job_delete" && (
-        <p className="muted">The job and every resume score against it are deleted once approved.</p>
+        <p className="muted">The job and every resume uploaded for it (with their scores) are deleted once approved.</p>
       )}
     </>
   );
 }
 
-function JobFieldValue({ field, value }: { field: keyof JobInput; value: unknown }) {
+function JobFieldValue({ field, value, domains }: { field: keyof JobInput; value: unknown; domains: Domain[] | null }) {
   if (field === "required_skills" || field === "preferred_skills") return <SkillList skills={value as string[] | null} />;
   if (field === "minimum_experience") return <>{value != null ? `${value}+ years` : "Not specified"}</>;
   if (field === "description") return <p className="description">{String(value ?? "")}</p>;
-  return <>{formatValue(value, true)}</>;
+  return <>{formatField(field, value, domains, true)}</>;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { APPROVALS_CHANGED } from "./api/approvals";
 import { ApiError } from "./api/client";
+import { SCREENING_CHANGED } from "./api/screenings";
 
 const POLL_MS = 30_000;
 // Switching tabs fires both "visibilitychange" and "focus"; refresh once.
@@ -9,7 +10,7 @@ const MIN_GAP_MS = 2_000;
 /**
  * Re-runs `refresh` so changes made by someone else (usually another admin approving a
  * request) show up without a manual reload: when the tab or window comes back into view,
- * every 30 seconds while it's visible, and after a decision is made in this tab.
+ * every 30 seconds while it's visible, and after an approval or screening decision in this tab.
  * Does nothing while `active` is false.
  */
 export function useAutoRefresh(refresh: () => void, active = true) {
@@ -32,11 +33,13 @@ export function useAutoRefresh(refresh: () => void, active = true) {
     document.addEventListener("visibilitychange", run);
     window.addEventListener("focus", run);
     window.addEventListener(APPROVALS_CHANGED, now);
+    window.addEventListener(SCREENING_CHANGED, now);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", run);
       window.removeEventListener("focus", run);
       window.removeEventListener(APPROVALS_CHANGED, now);
+      window.removeEventListener(SCREENING_CHANGED, now);
     };
   }, [active]);
 }

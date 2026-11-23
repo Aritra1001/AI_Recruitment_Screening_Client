@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { jobsApi } from "../api/jobs";
 import { canDeleteResume, formatBytes, resumesApi, saveBlob } from "../api/resumes";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
@@ -9,22 +8,17 @@ import { PendingNotice } from "../components/PendingNotice";
 import { ResumeStatusBadge } from "../components/ResumeStatusBadge";
 import { ScoreAgainstJob } from "../components/ScoreAgainstJob";
 import { SkillList } from "../components/SkillList";
-import type { ExtractedResume, Job, ResumeDetail } from "../types";
+import type { ExtractedResume, ResumeDetail } from "../types";
 import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
-
-// The API's maximum page size; enough for a POC.
-const MAX_JOBS = 200;
 
 export function ResumeDetailPage() {
   const { resumeId = "" } = useParams();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const staff = hasRole("admin", "recruiter");
   const [resume, setResume] = useState<ResumeDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<Job[] | null>(null);
-  const [jobsError, setJobsError] = useState<string | null>(null);
-  const [selectedJobId, setSelectedJobId] = useState("");
 
   useEffect(() => {
     resumesApi.get(resumeId).then(setResume).catch((e: Error) => setError(e.message));
@@ -35,15 +29,6 @@ export function ResumeDetailPage() {
     () => resumesApi.get(resumeId).then(setResume).catch(showIfGone(setError)),
     !!resume?.pending_deletion,
   );
-
-  // Jobs are only needed for ScoreAgainstJob, so load them the first time the resume is
-  // extracted. They're kept here because that card unmounts while re-extracting.
-  const extracted = resume?.status === "extracted";
-  useEffect(() => {
-    if (!extracted || jobs !== null) return;
-    setJobsError(null);
-    jobsApi.list(MAX_JOBS, 0).then(setJobs).catch((e: Error) => setJobsError(e.message));
-  }, [extracted, jobs]);
 
   // Extraction runs in the background on the server; refresh until it finishes.
   const extracting = resume?.status === "extracting";
@@ -69,14 +54,26 @@ export function ResumeDetailPage() {
 
   return (
     <>
-      <Link to="/resumes" className="back-link">
-        ← All resumes
-      </Link>
+      {resume.job ? (
+        <Link to={`/jobs/${resume.job.job_id}`} className="back-link">
+          ← {resume.job.title}
+        </Link>
+      ) : (
+        <Link to="/resumes" className="back-link">
+          ← All resumes
+        </Link>
+      )}
       <div className="page-header">
         <div>
           <h1 className="resume-title">{resume.original_filename}</h1>
           <p className="muted resume-meta">
-            <ResumeStatusBadge status={resume.status} /> Uploaded by {resume.uploader.full_name} on{" "}
+            <ResumeStatusBadge status={resume.status} /> Uploaded
+            {resume.job && (
+              <>
+                {" "}for <Link to={`/jobs/${resume.job.job_id}`}>{resume.job.title}</Link>
+              </>
+            )}{" "}
+            by {resume.uploader.full_name} on{" "}
             {new Date(resume.uploaded_at).toLocaleString()} · {formatBytes(resume.size_bytes)}
           </p>
         </div>
@@ -103,18 +100,12 @@ export function ResumeDetailPage() {
         </section>
         <section className="card resume-pane">
           <h2 className="pane-title">Extracted information</h2>
-          <ExtractedPanel resume={resume} onChange={setResume} />
+          <ExtractedPanel resume={resume} onChange={setResume} canExtract={staff} />
         </section>
       </div>
 
-      {resume.status === "extracted" && (
-        <ScoreAgainstJob
-          resumeId={resume.resume_id}
-          jobs={jobs}
-          jobsError={jobsError}
-          selectedId={selectedJobId}
-          onSelect={setSelectedJobId}
-        />
+      {staff && resume.status === "extracted" && (
+        <ScoreAgainstJob resumeId={resume.resume_id} job={resume.job} />
       )}
 
       <DeleteResumeDialog
@@ -169,7 +160,16 @@ function FilePreview({ resume, onDownload }: { resume: ResumeDetail; onDownload:
 
 const POLL_MS = 3000;
 
-function ExtractedPanel({ resume, onChange }: { resume: ResumeDetail; onChange: (r: ResumeDetail) => void }) {
+function ExtractedPanel({
+  resume,
+  onChange,
+  canExtract,
+}: {
+  resume: ResumeDetail;
+  onChange: (r: ResumeDetail) => void;
+  /** Domain managers only read. */
+  canExtract: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -185,11 +185,12 @@ function ExtractedPanel({ resume, onChange }: { resume: ResumeDetail; onChange: 
     }
   }
 
-  const button = (label: string, className = "btn") => (
-    <button className={className} onClick={extract} disabled={busy}>
-      {busy ? "Starting…" : label}
-    </button>
-  );
+  const button = (label: string, className = "btn") =>
+    canExtract ? (
+      <button className={className} onClick={extract} disabled={busy}>
+        {busy ? "Starting…" : label}
+      </button>
+    ) : null;
 
   let body: ReactNode;
   if (resume.status === "extracting") {

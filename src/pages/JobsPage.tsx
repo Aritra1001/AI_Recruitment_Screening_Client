@@ -83,6 +83,7 @@ export function JobsPage() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Domain</th>
                 <th>Required skills</th>
                 <th>Min. exp.</th>
                 <th>Created</th>
@@ -98,6 +99,7 @@ export function JobsPage() {
                       {job.title}
                     </Link>
                   </td>
+                  <td>{job.domain?.name ?? <span className="muted">—</span>}</td>
                   <td>
                     <SkillList skills={job.required_skills} max={4} />
                   </td>

@@ -80,6 +80,7 @@ export async function apiBlob(path: string): Promise<Blob> {
 export function apiUpload<T>(
   path: string,
   file: File,
+  fields: Record<string, string>,
   onProgress?: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<T> {
@@ -103,6 +104,7 @@ export function apiUpload<T>(
 
     const form = new FormData();
     form.append("file", file);
+    for (const [name, value] of Object.entries(fields)) form.append(name, value);
     xhr.send(form);
   });
 }

@@ -79,6 +79,18 @@ export function JobDetailPage() {
           <SkillList skills={job.preferred_skills} />
         </section>
         <section>
+          <h3>Domain</h3>
+          <p>
+            {job.domain?.name ?? (
+              <span className="muted">Not set. An admin needs to set one before resumes can be shortlisted.</span>
+            )}
+          </p>
+        </section>
+        <section>
+          <h3>Minimum score to shortlist</h3>
+          <p>{job.shortlist_min_score} / 100</p>
+        </section>
+        <section>
           <h3>Minimum experience</h3>
           <p>{job.minimum_experience != null ? `${job.minimum_experience}+ years` : "Not specified"}</p>
         </section>

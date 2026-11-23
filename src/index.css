@@ -430,6 +430,28 @@ textarea {
   font-weight: 400;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* Google renders its button in an iframe; keep it centered and the slot from collapsing. */
+.google-signin {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
 .auth-switch {
   text-align: center;
   font-size: 0.9rem;
@@ -574,6 +596,29 @@ textarea {
 .status-failed {
   background: var(--error-bg);
   color: var(--error-text);
+}
+
+/* The job picker on the upload page and the job filter on the resumes list. */
+.upload-job,
+.job-filter {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 480px;
+  margin-top: 1rem;
+}
+
+.upload-job label,
+.job-filter label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.upload-job p {
+  margin: 0;
+}
+
+.job-filter {
+  margin: 0 0 1rem;
 }
 
 .dropzone {
@@ -1555,5 +1600,157 @@ select {
     width: 100%;
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
+  }
+}
+
+/* ---- domains, shortlisting and screening ---- */
+.role-manager {
+  background: #fdf1e3;
+  color: #8a4b0f;
+}
+
+.screening-pending {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.screening-interview {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.screening-rejected {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.stage-ready {
+  background: #e6f4f1;
+  color: #146356;
+}
+
+.stage-below {
+  background: #eef1f7;
+  color: var(--muted);
+}
+
+.badge-link {
+  text-decoration: none;
+}
+
+.check-col {
+  width: 2rem;
+  text-align: center;
+}
+
+.shortlist-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.stage-line {
+  margin: 0 0 1rem;
+}
+
+.dialog-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.domain-add {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  max-width: 560px;
+}
+
+.domain-add label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.domain-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.domain-card {
+  padding: 1.25rem;
+}
+
+.domain-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.domain-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.domain-head p {
+  margin: 0.2rem 0 0;
+}
+
+.domain-card h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.domain-managers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.domain-managers p {
+  margin: 0;
+}
+
+.chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+@media (max-width: 700px) {
+  .shortlist-bar,
+  .domain-head,
+  .inline-form {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

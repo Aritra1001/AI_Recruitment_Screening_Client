@@ -5,7 +5,8 @@ export const scoresApi = {
   list: (jobId: string) => apiRequest<ResumeScore[]>(`/jobs/${jobId}/scores`),
   get: (jobId: string, resumeId: string) => apiRequest<ResumeScore>(`/jobs/${jobId}/scores/${resumeId}`),
   /**
-   * Start scoring in the background. Omit resumeIds to score every extracted resume. A resume
+   * Start scoring in the background. Omit resumeIds to score every extracted resume uploaded
+   * for this job (only those can be scored against it). A resume
    * whose job, resume and agent version are unchanged keeps its stored score unless force is set.
    */
   request: (jobId: string, resumeIds?: string[], force = false) =>

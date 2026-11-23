@@ -4,17 +4,28 @@ import { ApiError } from "../api/client";
 import { jobsApi } from "../api/jobs";
 import { resumesApi } from "../api/resumes";
 import { CRITERIA, candidateLabel, formatScore, scoreBand, scoresApi } from "../api/scores";
+import { meetsMinimum, screeningsApi } from "../api/screenings";
+import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { ScoreBadge, ScoreMeter } from "../components/ScoreBadge";
+import { StageBadge } from "../components/ScreeningBadge";
+import { SendToManagerDialog } from "../components/SendToManagerDialog";
 import { SkillList } from "../components/SkillList";
-import type { CriterionScore, Job, ResumeDetail, ResumeScore } from "../types";
+import type { CriterionScore, Job, ResumeDetail, ResumeScore, Screening } from "../types";
 
 const POLL_MS = 3000;
 
 /** One resume compared against one job, with the scoring agent's full assessment. */
 export function ScoreComparisonPage() {
   const { jobId = "", resumeId = "" } = useParams();
+  const { hasRole } = useAuth();
+  // Domain managers only read; they decide on the Screening page.
+  const staff = hasRole("admin", "recruiter");
   const [job, setJob] = useState<Job | null>(null);
+  // undefined = loading, null = not sent to the domain manager.
+  const [screening, setScreening] = useState<Screening | null | undefined>(undefined);
+  const [sending, setSending] = useState(false);
+  const [sentNotice, setSentNotice] = useState<string | null>(null);
   const [resume, setResume] = useState<ResumeDetail | null>(null);
   // undefined = loading, null = not scored for this job yet.
   const [score, setScore] = useState<ResumeScore | null | undefined>(undefined);
@@ -42,6 +53,10 @@ export function ScoreComparisonPage() {
       })
       .catch((e: Error) => setError(e.message));
     loadScore();
+    screeningsApi
+      .list({ jobId, resumeId })
+      .then((found) => setScreening(found[0] ?? null))
+      .catch(() => setScreening(null));
   }, [jobId, resumeId, loadScore]);
 
   // Scoring runs in the background on the server; refresh until it finishes.
@@ -85,11 +100,16 @@ export function ScoreComparisonPage() {
             <Link to={`/resumes/${resume.resume_id}`}>{resume.original_filename}</Link>
           </p>
         </div>
-        {score && score.status !== "scoring" && (
+        {staff && score && score.status !== "scoring" && (
           <div className="header-actions">
             <button className="btn" onClick={() => requestScore(true)} disabled={busy}>
               {busy ? "Starting…" : "Re-score"}
             </button>
+            {screening === null && meetsMinimum(score, job) && (
+              <button className="btn btn-primary" onClick={() => setSending(true)} disabled={busy || !job.domain}>
+                Send to manager
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -97,12 +117,21 @@ export function ScoreComparisonPage() {
       <Alert kind="error" onClose={() => setActionError(null)}>
         {actionError}
       </Alert>
+      <Alert kind="success" onClose={() => setSentNotice(null)}>
+        {sentNotice}
+      </Alert>
+      {score?.status === "scored" && screening !== undefined && (
+        <p className="stage-line">
+          <span className="muted">Stage:</span> <StageBadge score={score} screening={screening ?? undefined} job={job} />
+          {screening?.decision_comment && <span className="muted"> “{screening.decision_comment}”</span>}
+        </p>
+      )}
       {staleResume && (
         <Alert kind="info">This resume was re-extracted after it was scored. Re-score it to update the result.</Alert>
       )}
 
       {score === null ? (
-        <NotScored resume={resume} busy={busy} onScore={() => requestScore(false)} />
+        <NotScored resume={resume} busy={busy} canScore={staff} onScore={() => requestScore(false)} />
       ) : score.status === "scoring" ? (
         <div className="card empty-pane scoring-pane">
           <span className="spinner" aria-hidden="true" />
@@ -114,26 +143,49 @@ export function ScoreComparisonPage() {
       ) : score.status === "failed" ? (
         <>
           <Alert kind="error">Scoring failed{score.error ? `: ${score.error}` : "."}</Alert>
-          <div className="card empty-pane">
-            <button className="btn btn-primary" onClick={() => requestScore(false)} disabled={busy}>
-              {busy ? "Starting…" : "Retry scoring"}
-            </button>
-          </div>
+          {staff && (
+            <div className="card empty-pane">
+              <button className="btn btn-primary" onClick={() => requestScore(false)} disabled={busy}>
+                {busy ? "Starting…" : "Retry scoring"}
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <ScoreReport score={score} job={job} resume={resume} />
       )}
+
+      <SendToManagerDialog
+        job={job}
+        candidates={sending && score ? [{ resumeId, name: title }] : null}
+        onSent={([sent]) => {
+          setSending(false);
+          setScreening(sent);
+          setSentNotice(`Sent to the ${job.domain?.name ?? "domain"} managers. You'll be emailed when they decide.`);
+        }}
+        onCancel={() => setSending(false)}
+      />
     </>
   );
 }
 
-function NotScored({ resume, busy, onScore }: { resume: ResumeDetail; busy: boolean; onScore: () => void }) {
+function NotScored({
+  resume,
+  busy,
+  canScore,
+  onScore,
+}: {
+  resume: ResumeDetail;
+  busy: boolean;
+  canScore: boolean;
+  onScore: () => void;
+}) {
   return (
     <div className="card empty-pane">
       <p>
         <strong>This resume hasn't been scored against this job yet.</strong>
       </p>
-      {resume.status === "extracted" ? (
+      {!canScore ? null : resume.status === "extracted" ? (
         <>
           <p className="muted">The screening agent will compare it against the job's requirements.</p>
           <button className="btn btn-primary" onClick={onScore} disabled={busy}>

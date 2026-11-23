@@ -5,19 +5,26 @@ import { Alert } from "../components/Alert";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { JobForm } from "../components/JobForm";
 import { PendingNotice } from "../components/PendingNotice";
-import { FIELD_LABELS, formatValue } from "../jobFields";
+import { useDomains } from "../api/domains";
+import { FIELD_LABELS, formatField } from "../jobFields";
 import type { Job, JobInput } from "../types";
 import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
-/** Only the fields that differ from the saved job, so the PATCH (and audit log) stays minimal. */
-function diffJob(job: Job, input: JobInput): Partial<JobInput> {
-  const saved: JobInput = {
+function savedInput(job: Job): JobInput {
+  return {
     title: job.title,
     description: job.description,
     required_skills: job.required_skills ?? [],
     preferred_skills: job.preferred_skills ?? [],
     minimum_experience: job.minimum_experience,
+    domain_id: job.domain?.domain_id ?? null,
+    shortlist_min_score: job.shortlist_min_score,
   };
+}
+
+/** Only the fields that differ from the saved job, so the PATCH (and audit log) stays minimal. */
+function diffJob(job: Job, input: JobInput): Partial<JobInput> {
+  const saved = savedInput(job);
   const changes: Partial<JobInput> = {};
   for (const key of Object.keys(FIELD_LABELS) as (keyof JobInput)[]) {
     if (JSON.stringify(saved[key]) !== JSON.stringify(input[key])) {
@@ -36,6 +43,7 @@ export function JobEditPage() {
   const [pending, setPending] = useState<Partial<JobInput> | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const domains = useDomains();
 
   useEffect(() => {
     jobsApi.get(jobId).then(setJob).catch((e: Error) => setLoadError(e.message));
@@ -121,8 +129,8 @@ export function JobEditPage() {
               (Object.keys(pending) as (keyof JobInput)[]).map((key) => (
                 <tr key={key}>
                   <td>{FIELD_LABELS[key]}</td>
-                  <td className="diff-old">{formatValue(job[key])}</td>
-                  <td className="diff-new">{formatValue(pending[key])}</td>
+                  <td className="diff-old">{formatField(key, savedInput(job)[key], domains)}</td>
+                  <td className="diff-new">{formatField(key, pending[key], domains)}</td>
                 </tr>
               ))}
           </tbody>

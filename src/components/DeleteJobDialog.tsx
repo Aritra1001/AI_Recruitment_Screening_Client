@@ -46,7 +46,8 @@ export function DeleteJobDialog({ job, onRequested, onCancel }: Props) {
       onCancel={cancel}
     >
       <p>
-        You are asking to permanently delete <strong>{job?.title}</strong> and every resume score against it.
+        You are asking to permanently delete <strong>{job?.title}</strong>, every resume uploaded for it and their
+        scores.
       </p>
       <p className="muted">
         Another admin is emailed to approve it. The job stays live until they do; once approved, this cannot be

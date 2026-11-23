@@ -430,6 +430,28 @@ textarea {
   font-weight: 400;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* Google renders its button in an iframe; keep it centered and the slot from collapsing. */
+.google-signin {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
 .auth-switch {
   text-align: center;
   font-size: 0.9rem;

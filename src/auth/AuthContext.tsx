@@ -8,6 +8,8 @@ interface AuthState {
   /** True while a stored token is being validated on page load. */
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Signs in with the ID token from Google's button (creating a recruiter account if new). */
+  loginWithGoogle: (credential: string) => Promise<void>;
   /** Registers a new (recruiter) account and logs it in. */
   signup: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -51,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   );
 
+  const loginWithGoogle = useCallback(
+    async (credential: string) => startSession(await authApi.google(credential)),
+    [startSession],
+  );
+
   const signup = useCallback(
     async (fullName: string, email: string, password: string) =>
       startSession(await authApi.signup(fullName, email, password)),
@@ -62,12 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       login,
+      loginWithGoogle,
       signup,
       logout,
       hasRole: (...roles) => user !== null && roles.includes(user.role),
       isAdmin: user?.role === "admin",
     }),
-    [user, loading, login, signup, logout],
+    [user, loading, login, loginWithGoogle, signup, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

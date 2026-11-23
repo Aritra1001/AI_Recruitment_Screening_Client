@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 // Keep in sync with app/security.py.
 const MIN_PASSWORD_LENGTH = 8;
@@ -89,6 +90,12 @@ export function SignupPage() {
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
           {busy ? "Creating account…" : "Sign up"}
         </button>
+        <GoogleSignInButton
+          text="signup_with"
+          // "/" picks the start page for the role: an existing account Google links to may be a manager.
+          onSignedIn={() => navigate("/", { replace: true })}
+          onError={setError}
+        />
         <p className="auth-switch">
           Already have an account? <Link to="/login">Sign in</Link>
         </p>

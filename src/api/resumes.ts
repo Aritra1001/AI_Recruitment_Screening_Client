@@ -2,11 +2,14 @@ import type { Resume, ResumeDetail, User } from "../types";
 import { apiBlob, apiRequest, apiUpload } from "./client";
 
 export const resumesApi = {
-  list: (limit: number, offset: number) => apiRequest<Resume[]>(`/resumes?limit=${limit}&offset=${offset}`),
+  /** Pass jobId for only the resumes uploaded for that job. */
+  list: (limit: number, offset: number, jobId?: string) =>
+    apiRequest<Resume[]>(`/resumes?limit=${limit}&offset=${offset}${jobId ? `&job_id=${jobId}` : ""}`),
   get: (id: string) => apiRequest<ResumeDetail>(`/resumes/${id}`),
   file: (id: string) => apiBlob(`/resumes/${id}/file`),
-  upload: (file: File, onProgress?: (fraction: number) => void, signal?: AbortSignal) =>
-    apiUpload<Resume>("/resumes", file, onProgress, signal),
+  /** Upload a resume for a job; it is only ever scored against that job. */
+  upload: (file: File, jobId: string, onProgress?: (fraction: number) => void, signal?: AbortSignal) =>
+    apiUpload<Resume>("/resumes", file, { job_id: jobId }, onProgress, signal),
   extract: (id: string) => apiRequest<ResumeDetail>(`/resumes/${id}/extract`, { method: "POST" }),
   remove: (id: string) => apiRequest<void>(`/resumes/${id}`, { method: "DELETE" }),
 };

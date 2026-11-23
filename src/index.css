@@ -598,6 +598,29 @@ textarea {
   color: var(--error-text);
 }
 
+/* The job picker on the upload page and the job filter on the resumes list. */
+.upload-job,
+.job-filter {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 480px;
+  margin-top: 1rem;
+}
+
+.upload-job label,
+.job-filter label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.upload-job p {
+  margin: 0;
+}
+
+.job-filter {
+  margin: 0 0 1rem;
+}
+
 .dropzone {
   margin: 1.25rem 0 1rem;
   padding: 2.5rem 1rem;

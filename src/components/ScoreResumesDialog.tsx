@@ -29,10 +29,10 @@ export function ScoreResumesDialog({ open, jobId, scored, onStarted, onCancel }:
     setForce(false);
     setError(null);
     resumesApi
-      .list(MAX_RESUMES, 0)
+      .list(MAX_RESUMES, 0, jobId)
       .then((all) => setResumes(all.filter((r) => r.status === "extracted")))
       .catch((e: Error) => setError(e.message));
-  }, [open]);
+  }, [open, jobId]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,11 +76,13 @@ export function ScoreResumesDialog({ open, jobId, scored, onStarted, onCancel }:
         aria-labelledby="score-dialog-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="score-dialog-title">Score resumes against this job</h2>
+        <h2 id="score-dialog-title">Score this job's resumes</h2>
         <div className="modal-body">
           {resumes === null && !error && <div className="page-status">Loading resumes…</div>}
           {resumes?.length === 0 && (
-            <p className="muted">No extracted resumes yet. Upload and extract a resume before scoring it.</p>
+            <p className="muted">
+              No extracted resumes for this job yet. Upload resumes for this job and extract them before scoring.
+            </p>
           )}
           {resumes && resumes.length > 0 && (
             <>

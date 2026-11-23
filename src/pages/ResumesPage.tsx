@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { jobsApi } from "../api/jobs";
 import { canDeleteResume, fileTypeLabel, formatBytes, resumesApi } from "../api/resumes";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/Alert";
 import { PendingBadge } from "../components/ApprovalBadge";
 import { DeleteResumeDialog } from "../components/DeleteResumeDialog";
 import { ResumeStatusBadge } from "../components/ResumeStatusBadge";
-import type { Resume } from "../types";
+import type { Job, Resume } from "../types";
 import { useAutoRefresh } from "../useAutoRefresh";
 
 const PAGE_SIZE = 20;
+// The API's maximum page size; enough for a POC.
+const MAX_JOBS = 200;
 
 export function ResumesPage() {
   const { user } = useAuth();
   const location = useLocation();
+  // ?job=<id> shows only the resumes uploaded for that job.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const jobId = searchParams.get("job") ?? "";
+  const [jobs, setJobs] = useState<Job[] | null>(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -27,22 +34,33 @@ export function ResumesPage() {
     setLoading(true);
     setError(null);
     try {
-      setResumes(await resumesApi.list(PAGE_SIZE, page * PAGE_SIZE));
+      setResumes(await resumesApi.list(PAGE_SIZE, page * PAGE_SIZE, jobId || undefined));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, jobId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    jobsApi.list(MAX_JOBS, 0).then(setJobs).catch(() => setJobs([]));
+  }, []);
+
   // Quietly pick up deletions an admin approved.
   useAutoRefresh(() => {
-    resumesApi.list(PAGE_SIZE, page * PAGE_SIZE).then(setResumes).catch(() => {});
+    resumesApi.list(PAGE_SIZE, page * PAGE_SIZE, jobId || undefined).then(setResumes).catch(() => {});
   });
+
+  function filterByJob(id: string) {
+    setPage(0);
+    setSearchParams(id ? { job: id } : {}, { replace: true });
+  }
+
+  const uploadUrl = jobId ? `/resumes/upload?job=${jobId}` : "/resumes/upload";
 
   function handleRequested(resume: Resume) {
     setToDelete(null);
@@ -55,9 +73,9 @@ export function ResumesPage() {
       <div className="page-header">
         <div>
           <h1>Resumes</h1>
-          <p className="muted">Candidate resumes uploaded to the portal.</p>
+          <p className="muted">Candidate resumes, each uploaded for one job and scored only against it.</p>
         </div>
-        <Link to="/resumes/upload" className="btn btn-primary">
+        <Link to={uploadUrl} className="btn btn-primary">
           + Upload resumes
         </Link>
       </div>
@@ -67,6 +85,18 @@ export function ResumesPage() {
       </Alert>
       <Alert kind="error">{error}</Alert>
 
+      <div className="job-filter">
+        <label htmlFor="resume-job-filter">Job</label>
+        <select id="resume-job-filter" value={jobId} onChange={(e) => filterByJob(e.target.value)}>
+          <option value="">All jobs</option>
+          {jobs?.map((j) => (
+            <option key={j.job_id} value={j.job_id}>
+              {j.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="card table-card">
         {loading ? (
           <div className="page-status">Loading resumes…</div>
@@ -74,7 +104,7 @@ export function ResumesPage() {
           <div className="page-status">
             {page === 0 ? (
               <>
-                No resumes yet. <Link to="/resumes/upload">Upload the first one</Link>.
+                No resumes {jobId ? "for this job " : ""}yet. <Link to={uploadUrl}>Upload the first one</Link>.
               </>
             ) : (
               "No more resumes."
@@ -85,6 +115,7 @@ export function ResumesPage() {
             <thead>
               <tr>
                 <th>File</th>
+                <th>Job</th>
                 <th>Status</th>
                 <th>Uploaded by</th>
                 <th>Uploaded</th>
@@ -100,6 +131,13 @@ export function ResumesPage() {
                     <Link to={`/resumes/${resume.resume_id}`} className="job-title">
                       {resume.original_filename}
                     </Link>
+                  </td>
+                  <td>
+                    {resume.job ? (
+                      <Link to={`/jobs/${resume.job.job_id}`}>{resume.job.title}</Link>
+                    ) : (
+                      <span className="muted">No job</span>
+                    )}
                   </td>
                   <td>
                     <span className="badge-row">

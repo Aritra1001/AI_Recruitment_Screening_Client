@@ -42,8 +42,16 @@ export interface UserSummary {
   email: string;
 }
 
+export interface JobSummary {
+  job_id: string;
+  title: string;
+}
+
 export interface Resume {
   resume_id: string;
+  /** The job it was uploaded for, and the only job it is scored against. Null only for
+   * resumes uploaded before resumes belonged to a job. */
+  job: JobSummary | null;
   original_filename: string;
   content_type: string;
   size_bytes: number;

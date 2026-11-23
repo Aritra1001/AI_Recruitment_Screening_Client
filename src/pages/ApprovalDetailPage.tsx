@@ -92,6 +92,7 @@ function ChangeDetails({ request }: { request: ApprovalRequest }) {
         <h2 className="pane-title">Resume to delete</h2>
         <dl className="approval-fields">
           <Row label="File">{String(details.original_filename ?? request.target_name)}</Row>
+          <Row label="Job">{(details.job_title as string | null | undefined) ?? <span className="muted">None</span>}</Row>
           <Row label="Candidate">{(details.candidate_name as string | null) ?? <span className="muted">Not extracted</span>}</Row>
           <Row label="Uploaded by">{String(details.uploaded_by ?? "")}</Row>
         </dl>
@@ -110,7 +111,7 @@ function ChangeDetails({ request }: { request: ApprovalRequest }) {
         ))}
       </dl>
       {action === "job_delete" && (
-        <p className="muted">The job and every resume score against it are deleted once approved.</p>
+        <p className="muted">The job and every resume uploaded for it (with their scores) are deleted once approved.</p>
       )}
     </>
   );

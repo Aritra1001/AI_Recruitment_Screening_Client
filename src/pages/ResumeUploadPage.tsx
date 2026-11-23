@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
+import { jobsApi } from "../api/jobs";
 import { formatBytes, MAX_RESUME_MB, RESUME_EXTENSIONS, resumesApi } from "../api/resumes";
+import { Alert } from "../components/Alert";
+import type { Job } from "../types";
 
 const PARALLEL_UPLOADS = 3;
+// The API's maximum page size; enough for a POC.
+const MAX_JOBS = 200;
 
 type ItemStatus = "ready" | "invalid" | "uploading" | "done" | "error";
 
@@ -30,6 +35,12 @@ const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
 const uploadLabel = (n: number) => (n === 0 ? "Upload" : `Upload ${n} ${n === 1 ? "file" : "files"}`);
 
 export function ResumeUploadPage() {
+  // Every resume is uploaded for one job and only scored against it. A job page links here
+  // with ?job=<id> so its job is already picked.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const jobId = searchParams.get("job") ?? "";
+  const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [jobsError, setJobsError] = useState<string | null>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +50,11 @@ export function ResumeUploadPage() {
   const ready = items.filter((i) => i.status === "ready");
   const doneCount = items.filter((i) => i.status === "done").length;
   const failedCount = items.filter((i) => i.status === "error").length;
+  const job = jobs?.find((j) => j.job_id === jobId) ?? null;
+
+  useEffect(() => {
+    jobsApi.list(MAX_JOBS, 0).then(setJobs).catch((e: Error) => setJobsError(e.message));
+  }, []);
 
   // Cancel in-flight uploads on leaving the page, and warn before closing the tab mid-upload.
   // The controller is created inside the effect so StrictMode's mount/unmount/mount in dev
@@ -83,6 +99,7 @@ export function ResumeUploadPage() {
     try {
       const resume = await resumesApi.upload(
         item.file,
+        jobId,
         (progress) => update(item.key, { progress }),
         abortRef.current?.signal,
       );
@@ -109,13 +126,39 @@ export function ResumeUploadPage() {
 
   return (
     <>
-      <Link to="/resumes" className="back-link">
-        ← All resumes
-      </Link>
+      {job ? (
+        <Link to={`/jobs/${job.job_id}`} className="back-link">
+          ← {job.title}
+        </Link>
+      ) : (
+        <Link to="/resumes" className="back-link">
+          ← All resumes
+        </Link>
+      )}
       <h1>Upload resumes</h1>
       <p className="muted">
-        PDF or DOCX, up to {MAX_RESUME_MB} MB each. You can add several files at once.
+        PDF or DOCX, up to {MAX_RESUME_MB} MB each. You can add several files at once. Resumes are only scored
+        against the job they are uploaded for.
       </p>
+
+      <Alert kind="error">{jobsError}</Alert>
+      <div className="upload-job">
+        <label htmlFor="upload-job">Job</label>
+        <select
+          id="upload-job"
+          value={jobId}
+          disabled={!jobs || uploading}
+          onChange={(e) => setSearchParams(e.target.value ? { job: e.target.value } : {}, { replace: true })}
+        >
+          <option value="">{jobs ? "Choose the job these resumes are for…" : "Loading jobs…"}</option>
+          {jobs?.map((j) => (
+            <option key={j.job_id} value={j.job_id}>
+              {j.title}
+            </option>
+          ))}
+        </select>
+        {jobs?.length === 0 && <p className="muted">There are no jobs yet, so resumes can't be uploaded.</p>}
+      </div>
 
       <div
         className={`dropzone${dragging ? " dropzone-active" : ""}`}
@@ -201,7 +244,7 @@ export function ResumeUploadPage() {
       {(doneCount > 0 || failedCount > 0) && !uploading && (
         <p className="upload-summary">
           {doneCount} uploaded{failedCount > 0 && `, ${failedCount} failed`}.{" "}
-          <Link to="/resumes">Go to resumes</Link>
+          {job ? <Link to={`/jobs/${job.job_id}`}>Go to {job.title}</Link> : <Link to="/resumes">Go to resumes</Link>}
         </p>
       )}
 
@@ -213,7 +256,7 @@ export function ResumeUploadPage() {
         >
           Clear finished
         </button>
-        <button className="btn btn-primary" disabled={uploading || ready.length === 0} onClick={uploadAll}>
+        <button className="btn btn-primary" disabled={uploading || ready.length === 0 || !job} onClick={uploadAll}>
           {uploading ? "Uploading…" : uploadLabel(ready.length)}
         </button>
       </div>

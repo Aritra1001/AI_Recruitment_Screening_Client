@@ -15,7 +15,8 @@ const PAGE_SIZE = 20;
 const MAX_JOBS = 200;
 
 export function ResumesPage() {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const staff = hasRole("admin", "recruiter");
   const location = useLocation();
   // ?job=<id> shows only the resumes uploaded for that job.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -75,9 +76,11 @@ export function ResumesPage() {
           <h1>Resumes</h1>
           <p className="muted">Candidate resumes, each uploaded for one job and scored only against it.</p>
         </div>
-        <Link to={uploadUrl} className="btn btn-primary">
-          + Upload resumes
-        </Link>
+        {staff && (
+          <Link to={uploadUrl} className="btn btn-primary">
+            + Upload resumes
+          </Link>
+        )}
       </div>
 
       <Alert kind="success" onClose={() => setFlash(null)}>
@@ -104,7 +107,13 @@ export function ResumesPage() {
           <div className="page-status">
             {page === 0 ? (
               <>
-                No resumes {jobId ? "for this job " : ""}yet. <Link to={uploadUrl}>Upload the first one</Link>.
+                No resumes {jobId ? "for this job " : ""}yet.
+                {staff && (
+                  <>
+                    {" "}
+                    <Link to={uploadUrl}>Upload the first one</Link>.
+                  </>
+                )}
               </>
             ) : (
               "No more resumes."

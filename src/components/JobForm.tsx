@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { useDomains } from "../api/domains";
 import type { Job, JobInput } from "../types";
 
 interface Props {
@@ -23,6 +25,9 @@ export function JobForm({ initial, submitLabel, busy, onSubmit, onCancel }: Prop
   const [required, setRequired] = useState((initial?.required_skills ?? []).join("\n"));
   const [preferred, setPreferred] = useState((initial?.preferred_skills ?? []).join("\n"));
   const [experience, setExperience] = useState(initial?.minimum_experience?.toString() ?? "");
+  const [domainId, setDomainId] = useState(initial?.domain?.domain_id ?? "");
+  const [minScore, setMinScore] = useState(String(initial?.shortlist_min_score ?? 60));
+  const domains = useDomains();
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,6 +37,8 @@ export function JobForm({ initial, submitLabel, busy, onSubmit, onCancel }: Prop
       required_skills: parseLines(required),
       preferred_skills: parseLines(preferred),
       minimum_experience: experience.trim() === "" ? null : Number(experience),
+      domain_id: domainId || null,
+      shortlist_min_score: Number(minScore),
     });
   }
 
@@ -63,6 +70,36 @@ export function JobForm({ initial, submitLabel, busy, onSubmit, onCancel }: Prop
             rows={6}
             placeholder={"Docker\nKubernetes"}
           />
+        </label>
+      </div>
+      <div className="form-row">
+        <label>
+          Domain <small>(its managers screen the shortlisted resumes)</small>
+          <select value={domainId} onChange={(e) => setDomainId(e.target.value)} required disabled={!domains}>
+            <option value="">{domains ? "Choose a domain…" : "Loading domains…"}</option>
+            {domains?.map((d) => (
+              <option key={d.domain_id} value={d.domain_id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          {domains?.length === 0 && (
+            <small>
+              There are no domains yet. <Link to="/domains">Add one</Link> first.
+            </small>
+          )}
+        </label>
+        <label>
+          Minimum score to shortlist <small>(0-100)</small>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={minScore}
+            onChange={(e) => setMinScore(e.target.value)}
+            required
+          />
+          <small>Recruiters can only send resumes scoring at least this to the domain manager.</small>
         </label>
       </div>
       <label className="narrow">

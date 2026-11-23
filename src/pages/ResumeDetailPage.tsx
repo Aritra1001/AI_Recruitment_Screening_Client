@@ -13,7 +13,8 @@ import { showIfGone, useAutoRefresh } from "../useAutoRefresh";
 
 export function ResumeDetailPage() {
   const { resumeId = "" } = useParams();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const staff = hasRole("admin", "recruiter");
   const [resume, setResume] = useState<ResumeDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -99,11 +100,11 @@ export function ResumeDetailPage() {
         </section>
         <section className="card resume-pane">
           <h2 className="pane-title">Extracted information</h2>
-          <ExtractedPanel resume={resume} onChange={setResume} />
+          <ExtractedPanel resume={resume} onChange={setResume} canExtract={staff} />
         </section>
       </div>
 
-      {resume.status === "extracted" && (
+      {staff && resume.status === "extracted" && (
         <ScoreAgainstJob resumeId={resume.resume_id} job={resume.job} />
       )}
 
@@ -159,7 +160,16 @@ function FilePreview({ resume, onDownload }: { resume: ResumeDetail; onDownload:
 
 const POLL_MS = 3000;
 
-function ExtractedPanel({ resume, onChange }: { resume: ResumeDetail; onChange: (r: ResumeDetail) => void }) {
+function ExtractedPanel({
+  resume,
+  onChange,
+  canExtract,
+}: {
+  resume: ResumeDetail;
+  onChange: (r: ResumeDetail) => void;
+  /** Domain managers only read. */
+  canExtract: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,11 +185,12 @@ function ExtractedPanel({ resume, onChange }: { resume: ResumeDetail; onChange: 
     }
   }
 
-  const button = (label: string, className = "btn") => (
-    <button className={className} onClick={extract} disabled={busy}>
-      {busy ? "Starting…" : label}
-    </button>
-  );
+  const button = (label: string, className = "btn") =>
+    canExtract ? (
+      <button className={className} onClick={extract} disabled={busy}>
+        {busy ? "Starting…" : label}
+      </button>
+    ) : null;
 
   let body: ReactNode;
   if (resume.status === "extracting") {
